@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart } from 'lucide-react';
+import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart, Menu, X } from 'lucide-react';
 import Dashboard from '../components/Dashboard';
 import ReadingCalendar from '../components/ReadingCalendar';
 import Journal from '../components/Journal';
@@ -23,6 +23,7 @@ const Index = () => {
   const [userName, setUserName] = useLocalStorage<string>('bible-user-name', '');
   const [showConfetti, setShowConfetti] = useState(false);
   const [showNameInput, setShowNameInput] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
@@ -96,6 +97,17 @@ const Index = () => {
     exit: { opacity: 0, y: -20 }
   };
 
+  const navItems = [
+    { key: 'dashboard' as const, icon: Star, label: 'Dashboard' },
+    { key: 'calendar' as const, icon: Calendar, label: 'Reading' },
+    { key: 'journal' as const, icon: PenTool, label: 'Journal' }
+  ];
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <div className={`min-h-screen transition-all duration-300 ${
       theme === 'light' ? 'bg-gradient-to-br from-blue-50 to-indigo-100' :
@@ -111,9 +123,64 @@ const Index = () => {
             <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400" />
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bible Tracker</h1>
           </div>
-          <ThemeToggle theme={theme} setTheme={setTheme} />
+          
+          <div className="flex items-center gap-4">
+            <ThemeToggle theme={theme} setTheme={setTheme} />
+            
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6 text-gray-900 dark:text-white" />
+              ) : (
+                <Menu className="h-6 w-6 text-gray-900 dark:text-white" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-900 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Navigation</h2>
+                {navItems.map(({ key, icon: Icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => handleTabChange(key)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                      activeTab === key
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Name Input Modal */}
       <AnimatePresence>
@@ -173,10 +240,10 @@ const Index = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             {greeting}{userName ? `, ${userName}` : ''}! 
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4">
+          <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4 px-4">
             {todayVerse}
           </p>
           {showMotivation && (
@@ -198,14 +265,10 @@ const Index = () => {
           </div>
         </motion.div>
 
-        {/* Navigation Tabs */}
-        <div className="flex justify-center mb-8">
+        {/* Navigation Tabs - Desktop */}
+        <div className="hidden md:flex justify-center mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-1 flex gap-1 shadow-lg">
-            {[
-              { key: 'dashboard' as const, icon: Star, label: 'Dashboard' },
-              { key: 'calendar' as const, icon: Calendar, label: 'Reading' },
-              { key: 'journal' as const, icon: PenTool, label: 'Journal' }
-            ].map(({ key, icon: Icon, label }) => (
+            {navItems.map(({ key, icon: Icon, label }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
