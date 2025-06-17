@@ -9,7 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      journal_entries: {
+        Row: {
+          content: string
+          created_at: string | null
+          entry_date: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          entry_date: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          entry_date?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      reading_progress: {
+        Row: {
+          book_name: string
+          chapter_number: number
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          book_name: string
+          chapter_number: number
+          id?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          book_name?: string
+          chapter_number?: number
+          id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          created_at: string | null
+          current_streak: number | null
+          id: string
+          last_read_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_read_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_streak?: number | null
+          id?: string
+          last_read_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          id: number
+          user_id: string | null
+          visit_time: string | null
+        }
+        Insert: {
+          id?: never
+          user_id?: string | null
+          visit_time?: string | null
+        }
+        Update: {
+          id?: never
+          user_id?: string | null
+          visit_time?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

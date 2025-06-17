@@ -1,12 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart, Menu, X } from 'lucide-react';
+import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart, Menu, X, LogOut, User as UserIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Dashboard from '../components/Dashboard';
 import ReadingCalendar from '../components/ReadingCalendar';
 import Journal from '../components/Journal';
 import ThemeToggle from '../components/ThemeToggle';
 import Confetti from '../components/Confetti';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { useUserReadingProgress, useUserStreak } from '../hooks/useUserData';
 import { bibleBooks } from '../data/bibleData';
 import { getCurrentStreak, updateStreak } from '../utils/dateHelpers';
 
@@ -14,15 +18,16 @@ type Theme = 'light' | 'dark' | 'sunrise';
 type ActiveTab = 'dashboard' | 'calendar' | 'journal';
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [theme, setTheme] = useLocalStorage<Theme>('bible-tracker-theme', 'light');
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-  const [readChapters, setReadChapters] = useLocalStorage<Record<string, number[]>>('bible-read-chapters', {});
-  const [streak, setStreak] = useLocalStorage<number>('bible-reading-streak', 0);
-  const [lastReadDate, setLastReadDate] = useLocalStorage<string>('bible-last-read-date', '');
   const [userName, setUserName] = useLocalStorage<string>('bible-user-name', '');
   const [showConfetti, setShowConfetti] = useState(false);
   const [showNameInput, setShowNameInput] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { readChapters, toggleChapter, loading } = useUserReadingProgress();
+  const { streak, lastReadDate, updateStreak: updateUserStreak } = useUserStreak();
 
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
@@ -52,43 +57,32 @@ const Index = () => {
   const readChapterCount = Object.values(readChapters).reduce((sum, chapters) => sum + chapters.length, 0);
   const progressPercentage = Math.round((readChapterCount / totalChapters) * 100);
 
-  const toggleChapter = (bookName: string, chapterNumber: number) => {
-    setReadChapters((prev: Record<string, number[]>) => {
-      const bookChapters = prev[bookName] || [];
-      const isRead = bookChapters.includes(chapterNumber);
+  const handleToggleChapter = async (bookName: string, chapterNumber: number) => {
+    const wasRead = await toggleChapter(bookName, chapterNumber);
+    
+    if (wasRead) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
       
-      let newChapters;
-      if (isRead) {
-        newChapters = bookChapters.filter(ch => ch !== chapterNumber);
-      } else {
-        newChapters = [...bookChapters, chapterNumber].sort((a, b) => a - b);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 3000);
-        
-        // Update streak
-        const newStreak = updateStreak(lastReadDate);
-        setStreak(newStreak);
-        setLastReadDate(new Date().toISOString().split('T')[0]);
-      }
-      
-      return {
-        ...prev,
-        [bookName]: newChapters
-      };
-    });
+      // Update streak
+      const newStreak = updateStreak(lastReadDate);
+      updateUserStreak(newStreak);
+    }
   };
 
   const currentStreak = getCurrentStreak(lastReadDate, streak);
+
+  const displayName = user?.user_metadata?.full_name || user?.email || userName;
 
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
 
   useEffect(() => {
-    if (!userName) {
+    if (!user && !userName) {
       setShowNameInput(true);
     }
-  }, [userName]);
+  }, [user, userName]);
 
   const tabVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -104,6 +98,11 @@ const Index = () => {
 
   const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
     setMobileMenuOpen(false);
   };
 
@@ -124,6 +123,30 @@ const Index = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            {user ? (
+              <div className="hidden md:flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <UserIcon className="h-4 w-4" />
+                  {displayName}
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+              >
+                <UserIcon className="h-4 w-4" />
+                Sign In
+              </Link>
+            )}
+            
             <ThemeToggle theme={theme} setTheme={setTheme} />
             
             {/* Mobile Menu Button */}
@@ -161,6 +184,33 @@ const Index = () => {
             >
               <div className="p-6 space-y-4">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Navigation</h2>
+                
+                {/* User info / Auth in mobile menu */}
+                {user ? (
+                  <div className="mb-6 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-2">
+                      <UserIcon className="h-4 w-4" />
+                      {displayName}
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    to="/auth"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 p-3 bg-blue-600 text-white rounded-lg mb-6"
+                  >
+                    <UserIcon className="h-4 w-4" />
+                    Sign In to Save Progress
+                  </Link>
+                )}
+                
                 {navItems.map(({ key, icon: Icon, label }) => (
                   <button
                     key={key}
@@ -183,7 +233,7 @@ const Index = () => {
 
       {/* Name Input Modal */}
       <AnimatePresence>
-        {showNameInput && (
+        {showNameInput && !user && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -197,7 +247,7 @@ const Index = () => {
               className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full"
             >
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Welcome to your Bible journey!</h2>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">What should we call you?</p>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">What should we call you? (Your progress won't be saved unless you sign in)</p>
               <input
                 type="text"
                 placeholder="Enter your name"
@@ -213,19 +263,28 @@ const Index = () => {
                 }}
                 autoFocus
               />
-              <button
-                onClick={() => {
-                  const input = document.querySelector('input') as HTMLInputElement;
-                  const value = input?.value.trim();
-                  if (value) {
-                    setUserName(value);
-                    setShowNameInput(false);
-                  }
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
-              >
-                Let's Begin! 🙏
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const input = document.querySelector('input') as HTMLInputElement;
+                    const value = input?.value.trim();
+                    if (value) {
+                      setUserName(value);
+                      setShowNameInput(false);
+                    }
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+                >
+                  Continue as Guest
+                </button>
+                <Link
+                  to="/auth"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors text-center"
+                  onClick={() => setShowNameInput(false)}
+                >
+                  Sign Up
+                </Link>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -240,8 +299,17 @@ const Index = () => {
           className="text-center mb-8"
         >
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {greeting}{userName ? `, ${userName}` : ''}! 
+            {greeting}{displayName ? `, ${displayName}` : ''}! 
           </h2>
+          
+          {!user && (
+            <div className="mb-4 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+              <p className="text-amber-800 dark:text-amber-200 text-sm">
+                You're in guest mode. <Link to="/auth" className="font-medium underline hover:no-underline">Sign in</Link> to save your progress across devices.
+              </p>
+            </div>
+          )}
+          
           <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4 px-4">
             {todayVerse}
           </p>
@@ -307,7 +375,7 @@ const Index = () => {
             {activeTab === 'calendar' && (
               <ReadingCalendar
                 readChapters={readChapters}
-                toggleChapter={toggleChapter}
+                toggleChapter={handleToggleChapter}
                 bibleBooks={bibleBooks}
               />
             )}

@@ -1,25 +1,82 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PenTool, Search, Download, Calendar } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 
 const Journal = () => {
-  const [entries, setEntries] = useLocalStorage<Record<string, string>>('bible-journal-entries', {});
+  const { user } = useAuth();
+  const [localEntries, setLocalEntries] = useLocalStorage<Record<string, string>>('bible-journal-entries', {});
+  const [dbEntries, setDbEntries] = useState<Record<string, string>>({});
   const [currentEntry, setCurrentEntry] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
+  const entries = user ? dbEntries : localEntries;
 
   useEffect(() => {
     setCurrentEntry(entries[today] || '');
   }, [entries, today]);
 
-  const saveEntry = (date: string, content: string) => {
-    setEntries((prev: Record<string, string>) => ({
-      ...prev,
-      [date]: content
-    }));
+  useEffect(() => {
+    if (user) {
+      loadUserEntries();
+    }
+  }, [user]);
+
+  const loadUserEntries = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('entry_date, content')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const entriesMap: Record<string, string> = {};
+      data?.forEach(({ entry_date, content }) => {
+        entriesMap[entry_date] = content;
+      });
+
+      setDbEntries(entriesMap);
+    } catch (error) {
+      console.error('Error loading journal entries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveEntry = async (date: string, content: string) => {
+    if (user) {
+      try {
+        await supabase
+          .from('journal_entries')
+          .upsert({
+            user_id: user.id,
+            entry_date: date,
+            content: content
+          });
+
+        setDbEntries(prev => ({
+          ...prev,
+          [date]: content
+        }));
+      } catch (error) {
+        console.error('Error saving journal entry:', error);
+      }
+    } else {
+      setLocalEntries(prev => ({
+        ...prev,
+        [date]: content
+      }));
+    }
   };
 
   const handleSave = () => {
@@ -29,10 +86,14 @@ const Journal = () => {
   };
 
   const handleEditEntry = (date: string, content: string) => {
-    setEntries((prev: Record<string, string>) => ({
-      ...prev,
-      [date]: content
-    }));
+    if (user) {
+      saveEntry(date, content);
+    } else {
+      setLocalEntries(prev => ({
+        ...prev,
+        [date]: content
+      }));
+    }
   };
 
   useEffect(() => {
@@ -67,6 +128,14 @@ const Journal = () => {
     )
     .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime());
 
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center py-12">
+        <div className="text-gray-600 dark:text-gray-400">Loading your journal...</div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -78,6 +147,11 @@ const Journal = () => {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <PenTool className="h-6 w-6" />
           Reading Journal
+          {!user && (
+            <span className="text-sm font-normal text-amber-600 dark:text-amber-400 ml-2">
+              (Guest Mode - Not Saved)
+            </span>
+          )}
         </h2>
         <button
           onClick={exportEntries}
@@ -101,7 +175,7 @@ const Journal = () => {
           className="w-full h-32 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Auto-saves as you type
+          Auto-saves as you type {user ? 'to your account' : 'locally'}
         </p>
       </div>
 
