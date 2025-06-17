@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart, Menu, X } from 'lucide-react';
@@ -54,7 +53,7 @@ const Index = () => {
   const progressPercentage = Math.round((readChapterCount / totalChapters) * 100);
 
   const toggleChapter = (bookName: string, chapterNumber: number) => {
-    setReadChapters(prev => {
+    setReadChapters((prev: Record<string, number[]>) => {
       const bookChapters = prev[bookName] || [];
       const isRead = bookChapters.includes(chapterNumber);
       

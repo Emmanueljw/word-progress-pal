@@ -16,7 +16,7 @@ const Journal = () => {
   }, [entries, today]);
 
   const saveEntry = (date: string, content: string) => {
-    setEntries(prev => ({
+    setEntries((prev: Record<string, string>) => ({
       ...prev,
       [date]: content
     }));
@@ -29,7 +29,7 @@ const Journal = () => {
   };
 
   const handleEditEntry = (date: string, content: string) => {
-    setEntries(prev => ({
+    setEntries((prev: Record<string, string>) => ({
       ...prev,
       [date]: content
     }));
