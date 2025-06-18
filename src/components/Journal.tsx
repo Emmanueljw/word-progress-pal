@@ -75,7 +75,7 @@ const Journal = () => {
       }
     } else {
       // Save to local storage for guest users
-      setLocalEntries(prev => ({
+      setLocalEntries((prev: Record<string, string>) => ({
         ...prev,
         [selectedDate]: entry
       }));
@@ -104,7 +104,7 @@ const Journal = () => {
       }
     } else {
       // Delete from local storage for guest users
-      setLocalEntries(prev => {
+      setLocalEntries((prev: Record<string, string>) => {
         const newEntries = { ...prev };
         delete newEntries[selectedDate];
         return newEntries;

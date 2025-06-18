@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -70,7 +69,7 @@ export const useUserReadingProgress = () => {
         }
 
         // Update local state
-        setDbProgress(prev => {
+        setDbProgress((prev: Record<string, number[]>) => {
           const bookChapters = prev[bookName] || [];
           const newChapters = isRead
             ? bookChapters.filter(ch => ch !== chapterNumber)
@@ -96,7 +95,7 @@ export const useUserReadingProgress = () => {
         ? currentChapters.filter(ch => ch !== chapterNumber)
         : [...currentChapters, chapterNumber].sort((a, b) => a - b);
       
-      setLocalProgress(prev => ({
+      setLocalProgress((prev: Record<string, number[]>) => ({
         ...prev,
         [bookName]: newChapters
       }));
