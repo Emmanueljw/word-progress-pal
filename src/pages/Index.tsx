@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Calendar, PenTool, Sunrise, Moon, Sun, Flame, Star, Heart, Menu, X, LogOut, User as UserIcon } from 'lucide-react';
@@ -117,9 +116,8 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-lg bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bible Tracker</h1>
+          <div className="flex items-center">
+            <BookOpen className="h-10 w-10 text-blue-600 dark:text-blue-400" />
           </div>
           
           <div className="flex items-center gap-4">
@@ -171,7 +169,7 @@ const Index = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-[60] md:hidden"
             onClick={() => setMobileMenuOpen(false)}
           >
             <motion.div
@@ -179,7 +177,7 @@ const Index = () => {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-900 shadow-xl"
+              className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-900 shadow-xl z-[70]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 space-y-4">

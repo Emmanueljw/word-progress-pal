@@ -1,245 +1,216 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PenTool, Search, Download, Calendar } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Calendar, PenTool, Save, Edit, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const Journal = () => {
   const { user } = useAuth();
-  const [localEntries, setLocalEntries] = useLocalStorage<Record<string, string>>('bible-journal-entries', {});
-  const [dbEntries, setDbEntries] = useState<Record<string, string>>({});
-  const [currentEntry, setCurrentEntry] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [entry, setEntry] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const today = new Date().toISOString().split('T')[0];
-  const entries = user ? dbEntries : localEntries;
-
-  useEffect(() => {
-    setCurrentEntry(entries[today] || '');
-  }, [entries, today]);
+  
+  // Local storage for guest users
+  const [localEntries, setLocalEntries] = useLocalStorage<Record<string, string>>('bible-journal-entries', {});
 
   useEffect(() => {
     if (user) {
-      loadUserEntries();
+      loadEntry();
+    } else {
+      // Load from local storage for guest users
+      setEntry(localEntries[selectedDate] || '');
     }
-  }, [user]);
+  }, [selectedDate, user, localEntries]);
 
-  const loadUserEntries = async () => {
+  const loadEntry = async () => {
     if (!user) return;
-
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('journal_entries')
-        .select('entry_date, content')
-        .eq('user_id', user.id);
+        .select('content')
+        .eq('user_id', user.id)
+        .eq('entry_date', selectedDate)
+        .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading journal entry:', error);
+        return;
+      }
 
-      const entriesMap: Record<string, string> = {};
-      data?.forEach(({ entry_date, content }) => {
-        entriesMap[entry_date] = content;
-      });
-
-      setDbEntries(entriesMap);
+      setEntry(data?.content || '');
     } catch (error) {
-      console.error('Error loading journal entries:', error);
+      console.error('Error loading journal entry:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveEntry = async (date: string, content: string) => {
+  const saveEntry = async () => {
+    if (!entry.trim()) return;
+
     if (user) {
+      // Save to database for authenticated users
+      setLoading(true);
       try {
-        await supabase
+        const { error } = await supabase
           .from('journal_entries')
           .upsert({
             user_id: user.id,
-            entry_date: date,
-            content: content
+            entry_date: selectedDate,
+            content: entry,
+            updated_at: new Date().toISOString()
           });
 
-        setDbEntries(prev => ({
-          ...prev,
-          [date]: content
-        }));
+        if (error) throw error;
+        setIsEditing(false);
       } catch (error) {
         console.error('Error saving journal entry:', error);
+      } finally {
+        setLoading(false);
       }
     } else {
+      // Save to local storage for guest users
       setLocalEntries(prev => ({
         ...prev,
-        [date]: content
+        [selectedDate]: entry
       }));
+      setIsEditing(false);
     }
   };
 
-  const handleSave = () => {
-    if (currentEntry.trim()) {
-      saveEntry(today, currentEntry);
-    }
-  };
-
-  const handleEditEntry = (date: string, content: string) => {
+  const deleteEntry = async () => {
     if (user) {
-      saveEntry(date, content);
+      // Delete from database for authenticated users
+      setLoading(true);
+      try {
+        const { error } = await supabase
+          .from('journal_entries')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('entry_date', selectedDate);
+
+        if (error) throw error;
+        setEntry('');
+        setIsEditing(false);
+      } catch (error) {
+        console.error('Error deleting journal entry:', error);
+      } finally {
+        setLoading(false);
+      }
     } else {
-      setLocalEntries(prev => ({
-        ...prev,
-        [date]: content
-      }));
+      // Delete from local storage for guest users
+      setLocalEntries(prev => {
+        const newEntries = { ...prev };
+        delete newEntries[selectedDate];
+        return newEntries;
+      });
+      setEntry('');
+      setIsEditing(false);
     }
   };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentEntry.trim() && currentEntry !== (entries[today] || '')) {
-        handleSave();
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [currentEntry]);
-
-  const exportEntries = () => {
-    const exportData = Object.entries(entries)
-      .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-      .map(([date, entry]) => `# ${new Date(date).toLocaleDateString()}\n\n${entry}\n\n---\n`)
-      .join('\n');
-
-    const blob = new Blob([exportData], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'bible-journal.md';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredEntries = Object.entries(entries)
-    .filter(([date, entry]) => 
-      entry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      new Date(date).toLocaleDateString().toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime());
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto flex items-center justify-center py-12">
-        <div className="text-gray-600 dark:text-gray-400">Loading your journal...</div>
-      </div>
-    );
-  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <PenTool className="h-6 w-6" />
-          Reading Journal
-          {!user && (
-            <span className="text-sm font-normal text-amber-600 dark:text-amber-400 ml-2">
-              (Guest Mode - Not Saved)
-            </span>
-          )}
-        </h2>
-        <button
-          onClick={exportEntries}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Download className="h-4 w-4" />
-          Export
-        </button>
-      </div>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <PenTool className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Prayer Journal
+          </h2>
+        </div>
 
-      {/* Today's Entry */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Today's Reflection - {new Date().toLocaleDateString()}
-        </h3>
-        <textarea
-          value={currentEntry}
-          onChange={(e) => setCurrentEntry(e.target.value)}
-          placeholder="Write your thoughts, prayers, and reflections from today's reading..."
-          className="w-full h-32 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Auto-saves as you type {user ? 'to your account' : 'locally'}
-        </p>
-      </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Date
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+        </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search your entries..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-        />
-      </div>
-
-      {/* Previous Entries */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Previous Entries</h3>
-        {filteredEntries.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-            {searchTerm ? 'No entries match your search.' : 'No previous entries yet. Start writing!'}
-          </p>
-        ) : (
-          filteredEntries.map(([date, entry]) => (
-            <motion.div
-              key={date}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900 dark:text-white">
-                  {new Date(date).toLocaleDateString()}
-                </h4>
-                {editingDate === date ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Journal Entry for {format(new Date(selectedDate), 'MMMM d, yyyy')}
+            </h3>
+            <div className="flex gap-2">
+              {!isEditing && entry && (
+                <>
                   <button
-                    onClick={() => setEditingDate(null)}
-                    className="text-green-600 hover:text-green-700 text-sm"
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
                   >
-                    Done
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setEditingDate(date)}
-                    className="text-blue-600 hover:text-blue-700 text-sm"
-                  >
+                    <Edit className="h-4 w-4" />
                     Edit
+                  </button>
+                  <button
+                    onClick={deleteEntry}
+                    disabled={loading}
+                    className="flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 dark:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {isEditing || !entry ? (
+            <div className="space-y-4">
+              <textarea
+                value={entry}
+                onChange={(e) => setEntry(e.target.value)}
+                placeholder="Write your thoughts, prayers, or reflections here..."
+                className="w-full h-64 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={saveEntry}
+                  disabled={loading || !entry.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors"
+                >
+                  <Save className="h-4 w-4" />
+                  {loading ? 'Saving...' : 'Save Entry'}
+                </button>
+                {isEditing && (
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      loadEntry();
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Cancel
                   </button>
                 )}
               </div>
-              {editingDate === date ? (
-                <textarea
-                  value={entry}
-                  onChange={(e) => handleEditEntry(date, e.target.value)}
-                  className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              ) : (
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry}</p>
-              )}
-            </motion.div>
-          ))
-        )}
-      </div>
-    </motion.div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                {entry}
+              </p>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
