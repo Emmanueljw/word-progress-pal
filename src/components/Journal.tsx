@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, PenTool, Save, Edit, Trash2 } from 'lucide-react';
@@ -75,7 +76,7 @@ const Journal = () => {
       }
     } else {
       // Save to local storage for guest users
-      setLocalEntries((prev: Record<string, string>) => ({
+      setLocalEntries((prev) => ({
         ...prev,
         [selectedDate]: entry
       }));
@@ -104,7 +105,7 @@ const Journal = () => {
       }
     } else {
       // Delete from local storage for guest users
-      setLocalEntries((prev: Record<string, string>) => {
+      setLocalEntries((prev) => {
         const newEntries = { ...prev };
         delete newEntries[selectedDate];
         return newEntries;

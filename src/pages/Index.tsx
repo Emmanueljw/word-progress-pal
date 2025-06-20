@@ -12,9 +12,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUserReadingProgress, useUserStreak } from '../hooks/useUserData';
 import { bibleBooks } from '../data/bibleData';
 import { getCurrentStreak, updateStreak } from '../utils/dateHelpers';
+import BibleReader from '../components/BibleReader';
 
 type Theme = 'light' | 'dark' | 'sunrise';
-type ActiveTab = 'dashboard' | 'calendar' | 'journal';
+type ActiveTab = 'dashboard' | 'calendar' | 'journal' | 'reader';
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -92,7 +93,8 @@ const Index = () => {
   const navItems = [
     { key: 'dashboard' as const, icon: Star, label: 'Dashboard' },
     { key: 'calendar' as const, icon: Calendar, label: 'Reading' },
-    { key: 'journal' as const, icon: PenTool, label: 'Journal' }
+    { key: 'journal' as const, icon: PenTool, label: 'Journal' },
+    { key: 'reader' as const, icon: BookOpen, label: 'Bible' }
   ];
 
   const handleTabChange = (tab: ActiveTab) => {
@@ -381,6 +383,7 @@ const Index = () => {
               />
             )}
             {activeTab === 'journal' && <Journal />}
+            {activeTab === 'reader' && <BibleReader />}
           </motion.div>
         </AnimatePresence>
       </main>
