@@ -1,20 +1,32 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { bibleVersions, sampleBibleText, BibleVerse } from '../data/bibleVersions';
+import { bibleVersions } from '../data/bibleVersions';
 import { bibleBooks } from '../data/bibleData';
+import { useBibleAPI } from '../hooks/useBibleAPI';
 
 const BibleReader = () => {
   const [selectedVersion, setSelectedVersion] = useState('kjv');
   const [selectedBook, setSelectedBook] = useState('Genesis');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [fontSize, setFontSize] = useState('text-base');
+  const [chapterData, setChapterData] = useState<any>(null);
+
+  const { fetchChapter, loading, error } = useBibleAPI();
 
   const currentBookData = bibleBooks.find(book => book.name === selectedBook);
-  const chapterKey = `${selectedBook}-${selectedChapter}`;
-  const verses = sampleBibleText[selectedVersion]?.[chapterKey] || [];
+
+  // Load chapter data when book, chapter, or version changes
+  useEffect(() => {
+    loadChapter();
+  }, [selectedBook, selectedChapter, selectedVersion]);
+
+  const loadChapter = async () => {
+    const data = await fetchChapter(selectedBook, selectedChapter, selectedVersion);
+    setChapterData(data);
+  };
 
   const handlePreviousChapter = () => {
     if (selectedChapter > 1) {
@@ -148,7 +160,7 @@ const BibleReader = () => {
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={handlePreviousChapter}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors disabled:opacity-50"
             disabled={selectedBook === bibleBooks[0].name && selectedChapter === 1}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -161,7 +173,7 @@ const BibleReader = () => {
 
           <button
             onClick={handleNextChapter}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors disabled:opacity-50"
             disabled={selectedBook === bibleBooks[bibleBooks.length - 1].name && currentBookData && selectedChapter === currentBookData.chapters}
           >
             Next
@@ -171,9 +183,19 @@ const BibleReader = () => {
 
         {/* Bible Text */}
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-          {verses.length > 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-600 dark:text-gray-300">Loading chapter...</span>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-8 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-6 w-6 mr-2" />
+              <span>{error}</span>
+            </div>
+          ) : chapterData?.verses?.length > 0 ? (
             <div className={`space-y-4 ${fontSize} leading-relaxed text-gray-900 dark:text-white`}>
-              {verses.map((verse) => (
+              {chapterData.verses.map((verse: any) => (
                 <p key={verse.verse} className="flex gap-3">
                   <span className="font-bold text-blue-600 dark:text-blue-400 min-w-[2rem]">
                     {verse.verse}
@@ -185,11 +207,10 @@ const BibleReader = () => {
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Bible text not available for this chapter yet.
+                No content available for this chapter.
               </p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
-                This is a demo with limited content. In a full implementation, 
-                you would integrate with a Bible API service.
+                The Bible API may not have this chapter available in the selected version.
               </p>
             </div>
           )}
