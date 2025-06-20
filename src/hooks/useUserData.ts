@@ -96,10 +96,11 @@ export const useUserReadingProgress = () => {
         ? currentChapters.filter(ch => ch !== chapterNumber)
         : [...currentChapters, chapterNumber].sort((a, b) => a - b);
       
-      setLocalProgress(prev => ({
-        ...prev,
+      const updatedProgress = {
+        ...localProgress,
         [bookName]: newChapters
-      }));
+      };
+      setLocalProgress(updatedProgress);
 
       return !isRead;
     }

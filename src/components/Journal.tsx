@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PenTool, Save, Calendar, Heart, Search, Plus, Trash2 } from 'lucide-react';
@@ -101,15 +100,15 @@ const Journal = () => {
       }
     } else {
       // Save to local storage
-      setLocalEntries(prev => {
-        if (editingId) {
-          return prev.map(entry => 
-            entry.id === editingId ? newEntry : entry
-          );
-        } else {
-          return [newEntry, ...prev];
-        }
-      });
+      if (editingId) {
+        const updatedEntries = localEntries.map(entry => 
+          entry.id === editingId ? newEntry : entry
+        );
+        setLocalEntries(updatedEntries);
+      } else {
+        const updatedEntries = [newEntry, ...localEntries];
+        setLocalEntries(updatedEntries);
+      }
     }
 
     // Reset form
@@ -139,7 +138,8 @@ const Journal = () => {
         console.error('Error deleting journal entry:', error);
       }
     } else {
-      setLocalEntries(prev => prev.filter(entry => entry.id !== id));
+      const updatedEntries = localEntries.filter(entry => entry.id !== id);
+      setLocalEntries(updatedEntries);
     }
   };
 
@@ -170,7 +170,6 @@ const Journal = () => {
           </div>
         )}
 
-        {/* Entry Form */}
         <div className="space-y-4 mb-8">
           <div className="flex gap-4">
             <div className="flex-1">
@@ -236,7 +235,6 @@ const Journal = () => {
           </div>
         </div>
 
-        {/* Search */}
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -250,7 +248,6 @@ const Journal = () => {
           </div>
         </div>
 
-        {/* Entries List */}
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-8">
