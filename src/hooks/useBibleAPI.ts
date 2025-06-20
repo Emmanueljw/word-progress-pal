@@ -19,28 +19,21 @@ export const useBibleAPI = () => {
     setError(null);
 
     try {
-      // Create URL with query parameters for GET request
-      const url = new URL(`${supabase.supabaseUrl}/functions/v1/bible-api`);
-      url.searchParams.append('book', book.toLowerCase());
-      url.searchParams.append('chapter', chapter.toString());
-      url.searchParams.append('version', version.toLowerCase());
-
-      const response = await fetch(url.toString(), {
+      // Use supabase.functions.invoke with query parameters
+      const { data, error: functionError } = await supabase.functions.invoke('bible-api', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-          'apikey': supabase.supabaseKey,
-        }
+        body: new URLSearchParams({
+          book: book.toLowerCase(),
+          chapter: chapter.toString(),
+          version: version.toLowerCase()
+        })
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Bible API error response:', errorText);
+      if (functionError) {
+        console.error('Supabase function error:', functionError);
         setError('Failed to fetch Bible text');
         return null;
       }
-
-      const data = await response.json();
 
       if (data?.error) {
         console.error('Bible API error:', data.error);
