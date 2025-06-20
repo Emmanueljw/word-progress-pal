@@ -70,7 +70,7 @@ export const useUserReadingProgress = () => {
         }
 
         // Update local state
-        setDbProgress((prev: Record<string, number[]>) => {
+        setDbProgress(prev => {
           const bookChapters = prev[bookName] || [];
           const newChapters = isRead
             ? bookChapters.filter(ch => ch !== chapterNumber)
@@ -96,7 +96,7 @@ export const useUserReadingProgress = () => {
         ? currentChapters.filter(ch => ch !== chapterNumber)
         : [...currentChapters, chapterNumber].sort((a, b) => a - b);
       
-      setLocalProgress((prev: Record<string, number[]>) => ({
+      setLocalProgress(prev => ({
         ...prev,
         [bookName]: newChapters
       }));

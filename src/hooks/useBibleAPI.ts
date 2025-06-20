@@ -19,12 +19,16 @@ export const useBibleAPI = () => {
     setError(null);
 
     try {
+      // Send parameters as query string parameters, not in body
+      const params = new URLSearchParams({
+        book: book.toLowerCase(),
+        chapter: chapter.toString(),
+        version: version.toLowerCase()
+      });
+
       const { data, error: functionError } = await supabase.functions.invoke('bible-api', {
-        body: new URLSearchParams({
-          book: book.toLowerCase(),
-          chapter: chapter.toString(),
-          version: version.toLowerCase()
-        })
+        method: 'GET',
+        body: params
       });
 
       if (functionError) {
@@ -33,7 +37,7 @@ export const useBibleAPI = () => {
         return null;
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('Bible API error:', data.error);
         setError(data.error);
         return null;

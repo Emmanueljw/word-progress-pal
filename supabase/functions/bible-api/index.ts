@@ -13,10 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const book = url.searchParams.get('book');
-    const chapter = url.searchParams.get('chapter');
-    const version = url.searchParams.get('version') || 'kjv';
+    // Parse parameters from URL or request body
+    let book, chapter, version;
+    
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      book = url.searchParams.get('book');
+      chapter = url.searchParams.get('chapter');
+      version = url.searchParams.get('version') || 'kjv';
+    } else {
+      // Handle POST with URLSearchParams in body
+      const body = await req.text();
+      const params = new URLSearchParams(body);
+      book = params.get('book');
+      chapter = params.get('chapter');
+      version = params.get('version') || 'kjv';
+    }
+
+    console.log(`Received request: book=${book}, chapter=${chapter}, version=${version}`);
 
     if (!book || !chapter) {
       return new Response(
@@ -41,7 +55,7 @@ serve(async (req) => {
     if (!response.ok) {
       console.error(`Bible API error: ${response.status} ${response.statusText}`);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch Bible text' }),
+        JSON.stringify({ error: 'Failed to fetch Bible text from external API' }),
         { 
           status: response.status, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
